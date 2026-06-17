@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人工评分 - {{ student.username }}</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background-color: #f5f7fa; }
+        .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem; }
+        .page-header h2 { margin: 0; font-weight: 600; color: #2d3748; }
+        .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 10px; margin-bottom: 1.5rem; }
+        .flash-container { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 400px; }
+        .question-card { border-left: 4px solid #667eea; border-radius: 10px; }
+        .question-card.graded { border-left-color: #48bb78; }
+        .type-badge { background: #e9d8fd; color: #553c9a; font-size: 0.8rem; padding: 0.25rem 0.6rem; border-radius: 20px; }
+        .ai-score-badge { background: #bee3f8; color: #2b6cb0; font-size: 0.85rem; padding: 0.3rem 0.7rem; border-radius: 6px; }
+        .manual-score-badge { background: #c6f6d5; color: #276749; font-size: 0.85rem; padding: 0.3rem 0.7rem; border-radius: 6px; }
+        .answer-box {
+            background: #f8f9fc; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 0.8rem 1rem; font-family: 'Consolas', 'Courier New', monospace;
+            white-space: pre-wrap; word-break: break-word; font-size: 0.9rem;
+            max-height: 200px; overflow-y: auto;
+        }
+        .score-input { width: 80px; text-align: center; border-radius: 8px; font-weight: 600; }
+        .score-input:focus { border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.25); }
+        .comment-input { border-radius: 8px; font-size: 0.9rem; }
+        .sticky-footer {
+            position: sticky; bottom: 0; background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1); padding: 1rem 0; z-index: 100;
+            border-radius: 10px;
+        }
+        .correct-ref { background: #f0fff4; border-left: 3px solid #48bb78; padding: 0.7rem 1rem; border-radius: 0 8px 8px 0; }
+    </style>
+</head>
+<body>
+    {% include 'layout/header.html' %}
+
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="container mt-4">
+        <div class="page-header">
+            <h2>
+                <i class="fas fa-pen-fancy mr-2 text-warning"></i>人工评分
+                <small class="text-muted ml-2" style="font-size:1rem">{{ exam.title }} / {{ student.username }}</small>
+            </h2>
+            <a href="{{ url_for('result.grading_list', exam_id=exam.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left mr-1"></i>返回学生列表
+            </a>
+        </div>
+
+        {% if not subjective_items %}
+        <div class="card">
+            <div class="card-body text-center py-5 text-muted">
+                <i class="fas fa-check-circle" style="font-size:2.5rem;color:#48bb78"></i>
+                <p class="mt-2 mb-0">该学生没有需要人工评分的主观题</p>
+            </div>
+        </div>
+        {% else %}
+
+        <form method="POST" id="gradingForm">
+            {% for item in subjective_items %}
+            <div class="card question-card {{ 'graded' if item.answer.is_manual_graded else '' }}">
+                <div class="card-body p-4">
+                    <!-- 题头 -->
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <span class="type-badge mr-2">{{ item.type_label }}</span>
+                            <strong class="text-dark">第 {{ loop.index }} 题</strong>
+                            <span class="text-muted ml-2 small">（满分 {{ item.exam_question.score }} 分）</span>
+                        </div>
+                        <div>
+                            <span class="ai-score-badge mr-1">
+                                <i class="fas fa-robot mr-1"></i>AI: {{ item.answer.score or 0 }}分
+                            </span>
+                            {% if item.answer.is_manual_graded %}
+                                <span class="manual-score-badge">
+                                    <i class="fas fa-user-check mr-1"></i>人工: {{ item.answer.manual_score }}分
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- 题目内容 -->
+                    <p class="text-dark mb-3" style="white-space:pre-wrap">{{ item.question.content }}</p>
+
+                    <!-- 学生作答 -->
+                    <div class="mb-3">
+                        <label class="font-weight-bold text-secondary small">
+                            <i class="fas fa-user-graduate mr-1"></i>学生作答
+                        </label>
+                        <div class="answer-box">{{ item.answer.student_answer or '（未作答）' }}</div>
+                    </div>
+
+                    <!-- 参考答案 -->
+                    <div class="mb-3">
+                        <label class="font-weight-bold text-secondary small">
+                            <i class="fas fa-book mr-1"></i>参考答案
+                        </label>
+                        <div class="correct-ref">
+                            <code style="color:#276749;white-space:pre-wrap">{{ item.question.answer }}</code>
+                        </div>
+                    </div>
+
+                    <!-- 人工评分区域 -->
+                    <div class="border-top pt-3 mt-2" style="background:#fafbff;margin:0 -1rem -1rem;padding:1rem 1rem 1rem;border-radius:0 0 10px 10px">
+                        <div class="row align-items-end">
+                            <div class="col-md-3">
+                                <label class="font-weight-bold text-primary small d-block mb-1">
+                                    <i class="fas fa-star mr-1"></i>人工评分
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number"
+                                           class="form-control score-input"
+                                           name="manual_score_{{ item.answer.id }}"
+                                           value="{{ item.answer.manual_score if item.answer.manual_score is not none else '' }}"
+                                           min="0" max="{{ item.exam_question.score }}" step="0.5"
+                                           placeholder="分值">
+                                    <div class="input-group-append">
+                                        <span class="input-group-text" style="border-radius:0 8px 8px 0">
+                                            / {{ item.exam_question.score }}分
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-9">
+                                <label class="font-weight-bold text-primary small d-block mb-1">
+                                    <i class="fas fa-comment-dots mr-1"></i>评语（选填）
+                                </label>
+                                <input type="text"
+                                       class="form-control form-control-sm comment-input"
+                                       name="manual_comment_{{ item.answer.id }}"
+                                       value="{{ item.answer.manual_comment or '' }}"
+                                       placeholder="例如：思路正确，但代码缺少注释；计算过程不完整等">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- 提交按钮 -->
+            <div class="sticky-footer text-center mb-4">
+                <button type="submit" class="btn btn-primary btn-lg px-5"
+                        style="background:linear-gradient(135deg,#667eea,#764ba2);border:none;border-radius:50px"
+                        onclick="return confirm('确认保存人工评分？保存后将覆盖 AI 评分并重新计算总成绩。')">
+                    <i class="fas fa-save mr-2"></i>保存所有评分
+                </button>
+                <a href="{{ url_for('result.grading_list', exam_id=exam.id) }}"
+                   class="btn btn-outline-secondary btn-lg ml-2" style="border-radius:50px">
+                    取消
+                </a>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        setTimeout(function(){$('.flash-container .alert').fadeOut(500)},4000);
+
+        // 输入分数时验证范围
+        document.querySelectorAll('.score-input').forEach(function(input) {
+            input.addEventListener('input', function() {
+                var max = parseFloat(this.max);
+                var val = parseFloat(this.value);
+                if (val > max) { this.value = max; }
+                if (val < 0)  { this.value = 0; }
+            });
+        });
+    </script>
+</body>
+</html>

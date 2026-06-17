@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>答案解析</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    {% include 'layout/header.html' %}
+    <div class="container mt-4">
+        <h2>答案解析: {{ exam.title }}</h2>
+        
+        {% for item in analysis_list %}
+        <div class="card mb-4">
+            <div class="card-header {% if item.is_correct %}bg-success{% else %}bg-danger{% endif %} text-white">
+                第{{ loop.index }}题 - {% if item.is_correct %}正确{% else %}错误{% endif %}
+                <span class="float-right">{{ item.score }} / {{ item.max_score }} 分</span>
+            </div>
+            <div class="card-body">
+                <h5>题目：{{ item.content }}</h5>
+                
+                {% if item.options %}
+                <div class="mt-2">
+                    {% for opt in item.options %}
+                    <div class="ml-4">{{ opt }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="mt-3">
+                    <p><strong>你的答案：</strong>{{ item.student_answer or '（未作答）' }}</p>
+                    <p><strong>正确答案：</strong>{{ item.correct_answer }}</p>
+                    <p><strong>得分：</strong>{{ item.score }} / {{ item.max_score }} 分</p>
+                </div>
+                
+                <div class="mt-3 p-3 bg-light rounded">
+                    <h6>解析：</h6>
+                    <p>{{ item.analysis }}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <a href="{{ url_for('result.my_results') if current_user.is_student() else url_for('exam.view_results', id=exam.id) }}" 
+           class="btn btn-secondary">返回</a>
+    </div>
+</body>
+</html>

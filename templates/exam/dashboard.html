@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考试管理 - 在线考试系统</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background-color: #f5f7fa; }
+        .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+        .page-header h2 { margin: 0; font-weight: 600; color: #2d3748; }
+        .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 10px; }
+        .table thead th { background-color: #f8f9fc; font-weight: 600; color: #4a5568; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+        .table td { vertical-align: middle; }
+        .status-draft    { background: #e2e8f0; color: #4a5568; }
+        .status-published{ background: #c6f6d5; color: #276749; }
+        .status-ended    { background: #feebc8; color: #9c4221; }
+        .action-group .btn { margin-right: 4px; margin-bottom: 4px; }
+        .empty-state { padding: 3rem; text-align: center; color: #a0aec0; }
+        .empty-state i { font-size: 3rem; margin-bottom: 1rem; }
+        .flash-container { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 400px; }
+        .stat-card { border-radius: 10px; padding: 1rem 1.25rem; }
+        .stat-card .stat-num { font-size: 1.8rem; font-weight: 700; color: #2d3748; }
+        .stat-card .stat-label { font-size: 0.8rem; color: #718096; font-weight: 600; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    {% include 'layout/header.html' %}
+
+    <!-- Flash 消息 -->
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {% if category == 'success' %}<i class="fas fa-check-circle mr-1"></i>
+                        {% elif category == 'danger' %}<i class="fas fa-exclamation-circle mr-1"></i>
+                        {% elif category == 'warning' %}<i class="fas fa-exclamation-triangle mr-1"></i>
+                        {% else %}<i class="fas fa-info-circle mr-1"></i>{% endif %}
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="container mt-4">
+        <!-- 页头 -->
+        <div class="page-header">
+            <h2><i class="fas fa-chalkboard-teacher mr-2 text-primary"></i>考试管理</h2>
+            <a href="{{ url_for('exam.create_exam') }}" class="btn btn-primary">
+                <i class="fas fa-plus mr-1"></i>创建考试
+            </a>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="row mb-4">
+            {% set draft_count = exams|selectattr('status','equalto','draft')|list|length %}
+            {% set published_count = exams|selectattr('status','equalto','published')|list|length %}
+            {% set ended_count = exams|selectattr('status','equalto','ended')|list|length %}
+            <div class="col-md-3 mb-2">
+                <div class="card stat-card border-left-primary" style="border-left: 4px solid #667eea;">
+                    <div class="stat-label">全部考试</div>
+                    <div class="stat-num">{{ exams|length }}</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="card stat-card" style="border-left: 4px solid #a0aec0;">
+                    <div class="stat-label">草稿</div>
+                    <div class="stat-num">{{ draft_count }}</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="card stat-card" style="border-left: 4px solid #48bb78;">
+                    <div class="stat-label">进行中</div>
+                    <div class="stat-num">{{ published_count }}</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-2">
+                <div class="card stat-card" style="border-left: 4px solid #ed8936;">
+                    <div class="stat-label">已结束</div>
+                    <div class="stat-num">{{ ended_count }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 考试列表 -->
+        <div class="card">
+            <div class="card-body p-0">
+                {% if exams %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>考试名称</th>
+                                <th>状态</th>
+                                <th>开始时间</th>
+                                <th>结束时间</th>
+                                <th>时长</th>
+                                <th class="text-center" style="min-width:200px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exam in exams %}
+                            <tr>
+                                <td class="font-weight-bold text-dark">
+                                    <i class="fas fa-file-alt text-primary mr-2"></i>{{ exam.title }}
+                                </td>
+                                <td>
+                                    {% if exam.status == 'draft' %}
+                                        <span class="badge status-draft px-2 py-1"><i class="fas fa-pencil-alt mr-1"></i>草稿</span>
+                                    {% elif exam.status == 'published' %}
+                                        <span class="badge status-published px-2 py-1"><i class="fas fa-broadcast-tower mr-1"></i>已发布</span>
+                                    {% else %}
+                                        <span class="badge status-ended px-2 py-1"><i class="fas fa-flag-checkered mr-1"></i>已结束</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted small">{{ exam.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="text-muted small">{{ exam.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="text-muted small">{{ exam.duration }} 分钟</td>
+                                <td class="action-group text-center">
+                                    <a href="{{ url_for('exam.edit_exam', id=exam.id) }}"
+                                       class="btn btn-sm btn-outline-info" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if exam.status == 'draft' %}
+                                        <a href="{{ url_for('exam.add_questions', id=exam.id) }}"
+                                           class="btn btn-sm btn-outline-secondary" title="添加题目">
+                                            <i class="fas fa-plus-circle"></i>
+                                        </a>
+                                        <a href="{{ url_for('exam.invite_students', id=exam.id) }}"
+                                           class="btn btn-sm btn-outline-warning" title="邀请学生">
+                                            <i class="fas fa-user-plus"></i>
+                                        </a>
+                                        <a href="{{ url_for('exam.publish_exam', id=exam.id) }}"
+                                           class="btn btn-sm btn-success" title="发布考试"
+                                           onclick="return confirm('确定要发布此考试吗？')">
+                                            <i class="fas fa-paper-plane mr-1"></i>发布
+                                        </a>
+                                    {% elif exam.status == 'published' %}
+                                        <a href="{{ url_for('exam.end_exam', id=exam.id) }}"
+                                           class="btn btn-sm btn-outline-danger" title="结束考试"
+                                           onclick="return confirm('确定要结束此考试吗？结束后学生将无法继续答题。')">
+                                            <i class="fas fa-stop-circle mr-1"></i>结束
+                                        </a>
+                                    {% endif %}
+                                    <a href="{{ url_for('exam.view_results', id=exam.id) }}"
+                                       class="btn btn-sm btn-outline-success" title="查看成绩">
+                                        <i class="fas fa-chart-bar mr-1"></i>成绩
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-clipboard-list d-block"></i>
+                    <p class="mb-2">暂无考试，点击上方按钮创建</p>
+                    <a href="{{ url_for('exam.create_exam') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus mr-1"></i>创建第一场考试
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        setTimeout(function() { $('.flash-container .alert').fadeOut(500); }, 4000);
+    </script>
+</body>
+</html>

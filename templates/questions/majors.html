@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专业管理 - 在线考试系统</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background-color: #f5f7fa; }
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+        .page-header h2 { margin: 0; font-weight: 600; color: #2d3748; }
+        .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 10px; }
+        .card-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white; font-weight: 600; border-radius: 10px 10px 0 0 !important;
+        }
+        .table thead th { background-color: #f8f9fc; font-weight: 600; color: #4a5568; border-bottom: 2px solid #e2e8f0; }
+        .table td { vertical-align: middle; }
+        .badge-question { font-size: 0.85rem; }
+        .btn-del { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+        .modal-header.bg-danger { background: linear-gradient(135deg, #e53e3e, #c53030) !important; }
+        .major-name-link {
+            color: #2d3748; text-decoration: none; transition: color 0.2s;
+        }
+        .major-name-link:hover { color: #667eea; text-decoration: underline; }
+        .empty-state { padding: 2.5rem; text-align: center; color: #a0aec0; }
+        .empty-state i { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .stat-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
+        }
+        .stat-badge.has-questions { background-color: #fed7d7; color: #c53030; }
+        .stat-badge.no-questions { background-color: #c6f6d5; color: #276749; }
+        .flash-container { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 400px; }
+    </style>
+</head>
+<body>
+    {% include 'layout/header.html' %}
+
+    <!-- Flash 消息 -->
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {% if category == 'success' %}<i class="fas fa-check-circle mr-1"></i>
+                        {% elif category == 'danger' %}<i class="fas fa-exclamation-circle mr-1"></i>
+                        {% elif category == 'warning' %}<i class="fas fa-exclamation-triangle mr-1"></i>
+                        {% else %}<i class="fas fa-info-circle mr-1"></i>{% endif %}
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="container mt-4">
+        <!-- 页头 -->
+        <div class="page-header">
+            <h2><i class="fas fa-book-open mr-2 text-primary"></i>专业管理</h2>
+            <a href="{{ url_for('question_bank.list_questions') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left mr-1"></i>返回题库管理
+            </a>
+        </div>
+
+        <div class="row">
+            <!-- 左侧：添加专业表单 -->
+            <div class="col-lg-5 mb-4">
+                <div class="card h-100">
+                    <div class="card-header px-4 py-3">
+                        <i class="fas fa-plus-circle mr-1"></i>添加新专业
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" id="addMajorForm">
+                            <div class="form-group">
+                                <label for="name" class="font-weight-bold text-secondary">
+                                    <i class="fas fa-tag mr-1"></i>专业名称 <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="name" name="name"
+                                       placeholder="例如：高等数学、大学英语" required maxlength="50">
+                            </div>
+                            <div class="form-group">
+                                <label for="description" class="font-weight-bold text-secondary">
+                                    <i class="fas fa-align-left mr-1"></i>专业描述
+                                </label>
+                                <textarea class="form-control" id="description" name="description"
+                                          rows="3" placeholder="简要描述该专业方向（选填）" maxlength="500"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block mt-3"
+                                    style="background: linear-gradient(135deg, #667eea, #764ba2); border: none;">
+                                <i class="fas fa-plus mr-1"></i>添加专业
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：专业列表 -->
+            <div class="col-lg-7 mb-4">
+                <div class="card h-100">
+                    <div class="card-header px-4 py-3 d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-list mr-1"></i>专业列表</span>
+                        <span class="badge badge-light">{{ majors|length }} 个专业</span>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if majors %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width:35%">专业名称</th>
+                                        <th style="width:25%">描述</th>
+                                        <th style="width:20%" class="text-center">题目数量</th>
+                                        <th style="width:20%" class="text-center">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for major in majors %}
+                                    <tr>
+                                        <td class="font-weight-bold text-dark">
+                                            <a href="{{ url_for('question_bank.list_questions', major_id=major.id) }}"
+                                               class="major-name-link" title="点击查看该专业的题库">
+                                                <i class="fas fa-bookmark text-primary mr-2"></i>{{ major.name }}
+                                            </a>
+                                        </td>
+                                        <td class="text-muted small">
+                                            {{ major.description if major.description else '—' }}
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="stat-badge {{ 'has-questions' if major.questions|length > 0 else 'no-questions' }}"
+                                                  id="badge-{{ major.id }}">
+                                                <i class="fas fa-question-circle"></i>
+                                                <span id="count-{{ major.id }}">{{ major.questions|length }}</span> 道题
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <a href="{{ url_for('question_bank.list_questions', major_id=major.id) }}"
+                                               class="btn btn-outline-primary btn-del" title="查看题库">
+                                                <i class="fas fa-list"></i>
+                                            </a>
+                                            <button class="btn btn-outline-danger btn-del"
+                                                    onclick="openDeleteModal({{ major.id }}, '{{ major.name }}')"
+                                                    title="删除专业">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-folder-open d-block"></i>
+                            <p>暂无专业，请在左侧添加</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认弹框（Bootstrap Modal） -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+                <!-- 弹框头 -->
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteModalLabel">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>确认删除专业
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="关闭">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <!-- 弹框体 -->
+                <div class="modal-body p-4">
+                    <!-- 无题目时的正常确认 -->
+                    <div id="confirmSection">
+                        <p class="mb-2 text-secondary">您确定要删除以下专业吗？此操作不可撤销。</p>
+                        <div class="alert alert-light border d-flex align-items-center" style="border-radius:8px">
+                            <i class="fas fa-bookmark text-danger mr-3" style="font-size:1.5rem"></i>
+                            <div>
+                                <strong id="deleteMajorName" class="text-dark"></strong>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 有题目时的警告 -->
+                    <div id="warningSection" style="display:none">
+                        <div class="alert alert-warning d-flex align-items-start" style="border-radius:8px; border-left: 4px solid #e53e3e;">
+                            <i class="fas fa-exclamation-triangle text-warning mr-3 mt-1" style="font-size:1.3rem"></i>
+                            <div>
+                                <strong class="text-danger">无法删除</strong>
+                                <p class="mb-1 mt-1" id="warningText" style="color:#744210"></p>
+                                <a href="{{ url_for('question_bank.list_questions') }}" class="btn btn-sm btn-outline-primary mt-1" id="goToQuestionsBtn">
+                                    <i class="fas fa-arrow-right mr-1"></i>前往题库删除题目
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 加载状态 -->
+                    <div id="loadingSection" class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">加载中...</span>
+                        </div>
+                        <p class="text-muted mt-2 mb-0">正在检查关联题目...</p>
+                    </div>
+                </div>
+                <!-- 弹框脚 -->
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-1"></i>取消
+                    </button>
+                    <form id="deleteForm" method="POST" style="display:inline">
+                        <button type="submit" class="btn btn-danger" id="confirmDeleteBtn">
+                            <i class="fas fa-trash-alt mr-1"></i>确认删除
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        // Flash 消息自动消失
+        setTimeout(function() {
+            $('.flash-container .alert').fadeOut(500);
+        }, 4000);
+
+        // 打开删除弹框
+        function openDeleteModal(majorId, majorName) {
+            // 重置弹框状态
+            $('#confirmSection').hide();
+            $('#warningSection').hide();
+            $('#loadingSection').show();
+            $('#confirmDeleteBtn').prop('disabled', true).closest('form').show();
+            $('#deleteMajorName').text(majorName);
+
+            // 设置删除表单 action
+            $('#deleteForm').attr('action', '/majors/delete/' + majorId);
+
+            // 显示弹框
+            $('#deleteModal').modal('show');
+
+            // AJAX 检查题目数量
+            $.getJSON('/majors/' + majorId + '/info')
+                .done(function(data) {
+                    $('#loadingSection').hide();
+                    if (data.question_count > 0) {
+                        // 有题目：显示警告，禁用删除
+                        $('#warningSection').show();
+                        $('#confirmSection').hide();
+                        $('#confirmDeleteBtn').closest('form').hide();
+                        $('#warningText').html(
+                            '专业「<strong>' + data.name + '</strong>」下还有 <strong>' +
+                            data.question_count + '</strong> 道题目，请先删除相关题目后再删除专业。'
+                        );
+                        // 设置"前往题库"链接的筛选参数
+                        $('#goToQuestionsBtn').attr('href',
+                            '{{ url_for("question_bank.list_questions") }}?major_id=' + majorId
+                        );
+                    } else {
+                        // 无题目：正常确认
+                        $('#confirmSection').show();
+                        $('#warningSection').hide();
+                        $('#confirmDeleteBtn').prop('disabled', false);
+                    }
+                })
+                .fail(function() {
+                    $('#loadingSection').hide();
+                    $('#confirmSection').show();
+                    $('#confirmDeleteBtn').prop('disabled', false);
+                });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邀请学生 - {{ exam.title }}</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .remove-btn { padding: 2px 8px; font-size: 0.8rem; }
+        .invited-table tr:hover { background-color: #fff3cd; }
+    </style>
+</head>
+<body>
+    {% include 'layout/header.html' %}
+    <div class="container mt-4">
+        <h2><i class="fas fa-user-plus mr-2"></i>邀请学生参加考试: {{ exam.title }}</h2>
+        <p class="text-muted">
+            {% if exam.start_time and exam.end_time %}
+                考试时间：{{ exam.start_time.strftime('%Y-%m-%d %H:%M') }} ~ {{ exam.end_time.strftime('%Y-%m-%d %H:%M') }}
+            {% endif %}
+        </p>
+
+        <!-- 已邀请的学生 -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <strong><i class="fas fa-users mr-1 text-success"></i>已邀请的学生（{{ exam.exam_students|length }}）</strong>
+            </div>
+            <div class="card-body">
+                {% if exam.exam_students %}
+                    <table class="table table-sm table-hover invited-table mb-0">
+                        <thead>
+                            <tr><th width="40">#</th><th>用户名</th><th>邮箱</th><th>邀请时间</th><th width="60">操作</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for es in exam.exam_students %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td><i class="fas fa-user-circle mr-1 text-muted"></i>{{ es.student.username }}</td>
+                                <td>{{ es.student.email or '未填写' }}</td>
+                                <td><small class="text-muted">{{ es.invited_at.strftime('%m-%d %H:%M') if es.invited_at else '-' }}</small></td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('exam.remove_student', id=exam.id, student_id=es.student.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger remove-btn"
+                                                onclick="return confirm('确定取消邀请「{{ es.student.username }}」？')">
+                                            <i class="fas fa-user-times"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="text-muted mb-0"><i class="fas fa-inbox mr-1"></i>暂无邀请，请从下方选择学生</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 邀请学生表单 -->
+        <form method="POST">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <strong><i class="fas fa-user-graduate mr-1"></i>选择学生（共 {{ students|length }} 位未邀请学生，已邀请的已自动排除）</strong>
+                </div>
+                <div class="card-body p-0">
+                    {% if students %}
+                        <div class="list-group list-group-flush">
+                            {% for student in students %}
+                                <label class="list-group-item d-flex align-items-center mb-0">
+                                    <input type="checkbox" name="student_ids" value="{{ student.id }}" class="mr-3">
+                                    <div>
+                                        <i class="fas fa-user mr-1 text-muted"></i>
+                                        <strong>{{ student.username }}</strong>
+                                        <small class="text-muted ml-2">{{ student.email or '未填写邮箱' }}</small>
+                                    </div>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+                            <p>所有学生都已被邀请</p>
+                        </div>
+                    {% endif %}
+                </div>
+                {% if students %}
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus mr-1"></i>邀请选中学生
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- 始终可见的返回按钮 -->
+        <div class="mb-4">
+            <a href="{{ url_for('exam.dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left mr-1"></i>返回考试管理
+            </a>
+        </div>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

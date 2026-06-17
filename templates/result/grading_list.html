@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人工评分 - {{ exam.title }}</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background-color: #f5f7fa; }
+        .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem; }
+        .page-header h2 { margin: 0; font-weight: 600; color: #2d3748; }
+        .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 10px; }
+        .table thead th { background-color: #f8f9fc; font-weight: 600; color: #4a5568; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+        .table td { vertical-align: middle; }
+        .flash-container { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 400px; }
+        .progress-ring { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
+        .progress-ring .badge { font-size: 0.8rem; padding: 0.3rem 0.6rem; border-radius: 20px; }
+        .badge-graded { background: #c6f6d5; color: #276749; }
+        .badge-pending { background: #feebc8; color: #9c4221; }
+        .badge-none { background: #e2e8f0; color: #4a5568; }
+    </style>
+</head>
+<body>
+    {% include 'layout/header.html' %}
+
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="container mt-4">
+        <div class="page-header">
+            <h2><i class="fas fa-pen-fancy mr-2 text-warning"></i>人工评分：{{ exam.title }}</h2>
+            <a href="{{ url_for('exam.view_results', id=exam.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left mr-1"></i>返回成绩列表
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-0">
+                {% if students_info %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>学生</th>
+                                <th class="text-center">AI评分</th>
+                                <th class="text-center">总分</th>
+                                <th class="text-center">主观题</th>
+                                <th class="text-center">评分状态</th>
+                                <th class="text-center" style="width:120px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for info in students_info %}
+                            <tr>
+                                <td class="font-weight-bold">
+                                    <i class="fas fa-user-graduate text-primary mr-2"></i>
+                                    {{ info.student.username }}
+                                </td>
+                                <td class="text-center">{{ info.result.score }}</td>
+                                <td class="text-center text-muted">{{ info.result.total_score }}</td>
+                                <td class="text-center">
+                                    {% if info.total_subjective > 0 %}
+                                        {{ info.total_subjective }} 道
+                                    {% else %}
+                                        <span class="text-muted">无主观题</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if info.total_subjective == 0 %}
+                                        <span class="badge badge-none">无需评分</span>
+                                    {% elif info.pending_count == 0 %}
+                                        <span class="badge badge-graded"><i class="fas fa-check mr-1"></i>已评分</span>
+                                    {% else %}
+                                        <span class="badge badge-pending">
+                                            <i class="fas fa-clock mr-1"></i>待评 {{ info.pending_count }}/{{ info.total_subjective }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if info.total_subjective > 0 %}
+                                        <a href="{{ url_for('result.grading_detail', exam_id=exam.id, student_id=info.student.id) }}"
+                                           class="btn btn-sm {{ 'btn-warning' if info.pending_count > 0 else 'btn-outline-success' }}">
+                                            <i class="fas fa-pen mr-1"></i>
+                                            {{ '去评分' if info.pending_count > 0 else '查看/修改' }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-inbox" style="font-size:2.5rem"></i>
+                    <p class="mt-2">暂无学生提交考试</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>setTimeout(function(){$('.flash-container .alert').fadeOut(500)},4000)</script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考试成绩统计</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    {% include 'layout/header.html' %}
+    <div class="container mt-4">
+        <h2>考试成绩: {{ exam.title }}</h2>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>学生</th>
+                    <th>成绩</th>
+                    <th>总分</th>
+                    <th>提交时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in exam.results %}
+                <tr>
+                    <td>{{ result.student.username }}</td>
+                    <td>{{ result.score }}</td>
+                    <td>{{ result.total_score }}</td>
+                    <td>{{ result.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        {% if exam.status == 'ended' %}
+                            <a href="{{ url_for('result.view_analysis', exam_id=exam.id, student_id=result.student_id) }}"
+                               class="btn btn-sm btn-info">查看解析</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

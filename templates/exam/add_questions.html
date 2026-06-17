@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加题目 - {{ exam.title }}</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .remove-btn { padding: 2px 8px; font-size: 0.8rem; }
+        .added-table tr:hover { background-color: #fff3cd; }
+    </style>
+</head>
+<body>
+    {% include 'layout/header.html' %}
+    <div class="container mt-4">
+        <h2><i class="fas fa-plus-circle mr-2"></i>添加题目到考试: {{ exam.title }}</h2>
+        <p class="text-muted">时长 {{ exam.duration }} 分钟</p>
+
+        <!-- 已添加的题目 -->
+        <div class="card mb-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <strong><i class="fas fa-check-circle mr-1 text-success"></i>已添加的题目（{{ exam.exam_questions|length }}）</strong>
+                {% if exam.exam_questions|length >= 2 %}
+                <form method="POST" action="{{ url_for('exam.shuffle_questions', id=exam.id) }}" class="mb-0">
+                    <button type="submit" class="btn btn-sm btn-outline-warning"
+                            onclick="return confirm('确定要随机打乱题目顺序吗？')">
+                        <i class="fas fa-random mr-1"></i>随机打乱顺序
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if exam.exam_questions %}
+                    <table class="table table-sm table-hover added-table mb-0">
+                        <thead>
+                            <tr><th width="40">#</th><th>题目内容</th><th width="100">专业</th><th width="80">题型</th><th width="50">分值</th><th width="60">操作</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for eq in exam.exam_questions|sort(attribute='order') %}
+                            <tr>
+                                <td>{{ eq.order }}</td>
+                                <td>{{ eq.question.content[:60] }}{% if eq.question.content|length > 60 %}...{% endif %}</td>
+                                <td><span class="badge badge-info">{{ eq.question.major.name }}</span></td>
+                                <td><span class="badge badge-secondary">{{ type_labels.get(eq.question.type, eq.question.type) }}</span></td>
+                                <td>{{ eq.score }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('exam.remove_question', id=exam.id, question_id=eq.question.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger remove-btn"
+                                                onclick="return confirm('确定移除此题？')">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="text-muted mb-0"><i class="fas fa-inbox mr-1"></i>暂无题目，请从下方选择添加</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 筛选区域 -->
+        <div class="card mb-3">
+            <div class="card-body py-2">
+                <form method="GET" class="form-inline">
+                    <label class="mr-2"><i class="fas fa-filter mr-1"></i>筛选：</label>
+                    <select name="major_id" class="form-control form-control-sm mr-2">
+                        <option value="">全部专业</option>
+                        {% for m in majors %}
+                            <option value="{{ m.id }}" {% if filter_major_id == m.id %}selected{% endif %}>{{ m.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="type" class="form-control form-control-sm mr-2">
+                        <option value="">全部题型</option>
+                        {% for value, label in type_labels.items() %}
+                            <option value="{{ value }}" {% if filter_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-primary mr-2">
+                        <i class="fas fa-search mr-1"></i>筛选
+                    </button>
+                    <a href="{{ url_for('exam.add_questions', id=exam.id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times mr-1"></i>清除
+                    </a>
+                </form>
+            </div>
+        </div>
+
+        <!-- 添加题目表单 -->
+        <form method="POST">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <strong><i class="fas fa-list mr-1"></i>可选题目（共 {{ questions|length }} 道，已添加的题目已自动排除）</strong>
+                </div>
+                <div class="card-body p-0">
+                    {% if questions %}
+                        <div class="list-group list-group-flush">
+                            {% for question in questions %}
+                                <label class="list-group-item d-flex align-items-center mb-0">
+                                    <input type="checkbox" name="question_ids" value="{{ question.id }}" class="mr-3">
+                                    <div>
+                                        <div>{{ question.content[:80] }}{% if question.content|length > 80 %}...{% endif %}</div>
+                                        <small class="text-muted">
+                                            <span class="badge badge-info">{{ question.major.name }}</span>
+                                            <span class="badge badge-secondary">{{ type_labels.get(question.type, question.type) }}</span>
+                                            <span class="badge badge-light">
+                                                {% set diff_labels = {'easy':'简单','medium':'中等','hard':'困难'} %}
+                                                {{ diff_labels.get(question.difficulty, question.difficulty) }}
+                                            </span>
+                                        </small>
+                                    </div>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="fas fa-search fa-2x mb-2"></i>
+                            <p>没有符合筛选条件的可选题目</p>
+                        </div>
+                    {% endif %}
+                </div>
+                {% if questions %}
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus mr-1"></i>添加选中题目
+                    </button>
+                    <a href="{{ url_for('exam.dashboard') }}" class="btn btn-secondary ml-2">
+                        <i class="fas fa-arrow-left mr-1"></i>返回
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线考试系统</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .hero-section {
+            min-height: calc(100vh - 56px);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .hero-card {
+            background: white; border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            padding: 3rem 2.5rem; max-width: 520px; width: 100%; text-align: center;
+        }
+        .hero-icon {
+            width: 80px; height: 80px; border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.5rem; font-size: 2rem; color: white;
+        }
+        .hero-title { font-size: 1.8rem; font-weight: 700; color: #2d3748; margin-bottom: 0.5rem; }
+        .hero-subtitle { color: #718096; margin-bottom: 2rem; line-height: 1.6; }
+        .feature-list { text-align: left; margin: 0 auto 2rem; display: inline-block; }
+        .feature-list li { color: #4a5568; padding: 0.4rem 0; }
+        .feature-list i { color: #667eea; width: 20px; }
+        .btn-hero {
+            padding: 0.7rem 2rem; border-radius: 50px; font-weight: 600;
+            font-size: 1rem; transition: all 0.3s ease;
+        }
+        .btn-hero-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none; color: white;
+        }
+        .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102,126,234,0.4); color: white; }
+        .btn-hero-outline { border: 2px solid #667eea; color: #667eea; background: transparent; }
+        .btn-hero-outline:hover { background: #667eea; color: white; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: transparent;">
+        <div class="container">
+            <a class="navbar-brand font-weight-bold" href="/">
+                <i class="fas fa-graduation-cap mr-2"></i>在线考试系统
+            </a>
+<!--            <div class="ml-auto">-->
+<!--                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-sm mr-2">-->
+<!--                    <i class="fas fa-sign-in-alt mr-1"></i>登录-->
+<!--                </a>-->
+<!--                <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-sm">-->
+<!--                    <i class="fas fa-user-plus mr-1"></i>注册-->
+<!--                </a>-->
+<!--            </div>-->
+        </div>
+    </nav>
+
+    <div class="hero-section">
+        <div class="hero-card">
+            <div class="hero-icon">
+                <i class="fas fa-graduation-cap"></i>
+            </div>
+            <h1 class="hero-title">欢迎使用在线考试系统</h1>
+            <p class="hero-subtitle">专业的在线考试平台，集成 AI 智能出题与自动批改，<br>让教学测评更高效</p>
+
+            <ul class="feature-list list-unstyled">
+                <li><i class="fas fa-check-circle mr-2"></i>AI 智能批量生成试题</li>
+                <li><i class="fas fa-check-circle mr-2"></i>在线考试实时答题</li>
+                <li><i class="fas fa-check-circle mr-2"></i>AI 自动批改评分</li>
+                <li><i class="fas fa-check-circle mr-2"></i>详细答题解析与成绩分析</li>
+            </ul>
+
+            <div class="d-flex justify-content-center" style="gap:1rem">
+                <a href="{{ url_for('auth.login') }}" class="btn btn-hero btn-hero-primary">
+                    <i class="fas fa-sign-in-alt mr-2"></i>立即登录
+                </a>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-hero btn-hero-outline">
+                    注册账户
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

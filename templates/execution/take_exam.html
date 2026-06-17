@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>参加考试 - {{ exam.title }}</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { padding-top: 70px; }
+        .exam-topbar {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 1050;
+            background: #343a40; color: #fff; padding: 10px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .exam-topbar .timer {
+            font-size: 1.4rem; font-weight: bold;
+            font-family: 'Consolas', monospace;
+        }
+        .exam-topbar .timer.warning { color: #ffc107; }
+        .exam-topbar .timer.danger  { color: #ff4444; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        .switch-badge {
+            background: #6c757d; color: #fff;
+            padding: 4px 10px; border-radius: 12px; font-size: 0.85rem;
+        }
+        .switch-badge.warn { background: #ffc107; color: #333; }
+        .switch-badge.danger { background: #dc3545; }
+        /* 提交 loading 覆盖层 */
+        #submitOverlay {
+            display: none; position: fixed; top:0;left:0;right:0;bottom:0;
+            background: rgba(0,0,0,0.55); z-index: 9999;
+            justify-content: center; align-items: center;
+        }
+        #submitOverlay.show { display: flex; }
+        #submitOverlay .card {
+            border-radius: 12px; padding: 40px 50px; text-align: center;
+            pointer-events: none;  // 阻止点击穿透
+        }
+    </style>
+</head>
+<body>
+    {% include 'layout/header.html' %}
+
+    <!-- 固定顶部栏：倒计时 + 切屏次数 -->
+    <div class="exam-topbar">
+        <div>
+            <strong>{{ exam.title }}</strong>
+            <span class="text-muted ml-2">（时长 {{ exam.duration }} 分钟）</span>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="switch-badge mr-3" id="switchBadge">
+                <i class="fas fa-eye-slash mr-1"></i>切屏 <span id="switchCount">{{ exam_session.switch_count or 0 }}</span> / 3
+            </span>
+            <span class="timer" id="countdownTimer">--:--</span>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <form method="POST" id="examForm">
+            {% for question in questions %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <strong>第{{ loop.index }}题</strong> ({{ question.score }}分)
+                        {% set type_labels = {'single_choice':'单选题','multiple_choice':'多选题','fill_blank':'填空题','true_false':'判断题','short_answer':'问答题','programming':'编程题','application':'应用题','calculation':'计算题'} %}
+                        <span class="badge badge-secondary">{{ type_labels.get(question.type, question.type) }}</span>
+                    </div>
+                    <div class="card-body">
+                        <p>{{ question.content }}</p>
+
+                        {% if question.type == 'single_choice' or question.type == 'multiple_choice' %}
+                            {% for option in question.options %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="answer_{{ question.id }}"
+                                           id="option_{{ question.id }}_{{ loop.index0 }}"
+                                           value="{{ option }}"
+                                           {% if question.student_answer == option %}checked{% endif %}>
+                                    <label class="form-check-label" for="option_{{ question.id }}_{{ loop.index0 }}">
+                                        {{ option }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        {% elif question.type == 'true_false' %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="answer_{{ question.id }}"
+                                       id="true_{{ question.id }}" value="对"
+                                       {% if question.student_answer == '对' %}checked{% endif %}>
+                                <label class="form-check-label" for="true_{{ question.id }}">对</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="answer_{{ question.id }}"
+                                       id="false_{{ question.id }}" value="错"
+                                       {% if question.student_answer == '错' %}checked{% endif %}>
+                                <label class="form-check-label" for="false_{{ question.id }}">错</label>
+                            </div>
+                        {% elif question.type == 'programming' %}
+                            <textarea class="form-control" name="answer_{{ question.id }}" rows="10"
+                                      style="font-family:Consolas,monospace;font-size:0.9rem"
+                                      placeholder="请在此输入代码...">{{ question.student_answer or '' }}</textarea>
+                        {% elif question.type in ['application', 'calculation'] %}
+                            <textarea class="form-control" name="answer_{{ question.id }}" rows="6"
+                                      placeholder="请写出完整的解答过程...">{{ question.student_answer or '' }}</textarea>
+                        {% else %}
+                            <textarea class="form-control" name="answer_{{ question.id }}" rows="4">{{ question.student_answer or '' }}</textarea>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+
+            <div class="text-center mb-5">
+                <button type="submit" class="btn btn-secondary btn-lg mr-3">
+                    <i class="fas fa-save mr-1"></i>保存答案
+                </button>
+                <button type="button" class="btn btn-primary btn-lg" onclick="confirmSubmit()">
+                    <i class="fas fa-paper-plane mr-1"></i>提交考试
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 切屏警告弹框 -->
+    <div class="modal fade" id="switchModal" tabindex="-1" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>切屏警告</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <p class="lead">检测到您离开了考试页面！</p>
+                    <p>当前切屏次数：<strong id="modalSwitchCount">0</strong> / 3</p>
+                    <p class="text-danger">切屏达到 <strong>3 次</strong>将自动提交试卷！</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">返回考试</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提交 loading 覆盖层 -->
+    <div id="submitOverlay">
+        <div class="card">
+            <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem" role="status">
+                <span class="sr-only">提交中...</span>
+            </div>
+            <h5>正在提交试卷，请稍候…</h5>
+            <p class="text-muted mb-0">正在自动批改中</p>
+        </div>
+    </div>
+
+    <script>
+        /* ─────────────────────────────────────────────
+           倒计时（服务端时间同步）
+           ───────────────────────────────────────────── */
+        let remaining = {{ remaining_seconds }};  // 服务端计算的剩余秒数
+        const timerEl = document.getElementById('countdownTimer');
+        let isSubmitting = false;  // 提交中标志，防止重复提交和切屏检测干扰
+
+        function formatTime(sec) {
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = sec % 60;
+            if (h > 0) return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+            return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+        }
+
+        function updateTimerDisplay() {
+            timerEl.textContent = formatTime(remaining);
+            // 颜色警告
+            timerEl.classList.remove('warning', 'danger');
+            if (remaining <= 60)       timerEl.classList.add('danger');
+            else if (remaining <= 300) timerEl.classList.add('warning');
+        }
+
+        function tickCountdown() {
+            if (remaining <= 0) {
+                if (isSubmitting) return;
+                isSubmitting = true;
+                clearInterval(timerInterval);
+                showSubmitOverlay();
+                document.getElementById('examForm').submit();
+                return;
+            }
+            remaining--;
+            updateTimerDisplay();
+        }
+
+        updateTimerDisplay();
+        const timerInterval = setInterval(tickCountdown, 1000);
+
+
+        /* ─────────────────────────────────────────────
+           切屏检测（visibilitychange）
+           ───────────────────────────────────────────── */
+        const MAX_SWITCHES = 3;
+        let switchCount = {{ exam_session.switch_count or 0 }};
+        const switchCountEl = document.getElementById('switchCount');
+        const switchBadge   = document.getElementById('switchBadge');
+        const modalCountEl  = document.getElementById('modalSwitchCount');
+
+        function updateSwitchUI() {
+            switchCountEl.textContent = switchCount;
+            modalCountEl.textContent  = switchCount;
+            switchBadge.classList.remove('warn', 'danger');
+            if (switchCount >= MAX_SWITCHES) switchBadge.classList.add('danger');
+            else if (switchCount >= 1)       switchBadge.classList.add('warn');
+        }
+        updateSwitchUI();
+
+        document.addEventListener('visibilitychange', function() {
+            // 已在提交中，不再触发切屏检测
+            if (isSubmitting) return;
+
+            if (document.hidden) {
+                fetch('{{ url_for("execution.report_switch", exam_id=exam.id) }}', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) return;
+                    switchCount = data.switch_count;
+                    updateSwitchUI();
+
+                    if (data.auto_submitted) {
+                        // 达到上限，自动提交
+                        isSubmitting = true;
+                        clearInterval(timerInterval);
+                        $('#switchModal').modal('hide');
+                        showSubmitOverlay();
+                        document.getElementById('examForm').submit();
+                    } else {
+                        $('#switchModal').modal('show');
+                    }
+                })
+                .catch(err => console.error('切屏上报失败:', err));
+            }
+        });
+
+
+        /* ─────────────────────────────────────────────
+           提交确认
+           ───────────────────────────────────────────── */
+        function showSubmitOverlay() {
+            document.getElementById('submitOverlay').classList.add('show');
+        }
+
+        function confirmSubmit() {
+            if (isSubmitting) return;  // 防重复提交
+            if (confirm('确定要提交试卷吗？提交后无法修改！')) {
+                isSubmitting = true;
+                $('#switchModal').modal('hide');  // 关闭可能打开的切屏弹窗
+                showSubmitOverlay();
+                const input = document.createElement('input');
+                input.type  = 'hidden';
+                input.name  = 'submit';
+                input.value = 'true';
+                document.getElementById('examForm').appendChild(input);
+                document.getElementById('examForm').submit();
+            }
+        }
+
+        // 保存按钮也显示 loading
+        document.querySelector('.btn-secondary.btn-lg').addEventListener('click', function() {
+            document.getElementById('submitOverlay').classList.add('show');
+        });
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考试成绩 - {{ result.exam.title }}</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    {% include 'layout/header.html' %}
+    <div class="container mt-4">
+        <div class="card mx-auto" style="max-width: 500px;">
+            <div class="card-header bg-primary text-white text-center">
+                <h3 class="mb-0"><i class="fas fa-trophy mr-2"></i>考试成绩</h3>
+            </div>
+            <div class="card-body text-center">
+                <h4 class="mb-3">{{ result.exam.title }}</h4>
+
+                <!-- 成绩展示 -->
+                <div class="my-4">
+                    {% set pct = (result.score / result.total_score * 100) if result.total_score > 0 else 0 %}
+                    <div class="display-3 font-weight-bold
+                        {% if pct >= 80 %}text-success
+                        {% elif pct >= 60 %}text-warning
+                        {% else %}text-danger{% endif %}">
+                        {{ result.score }}
+                    </div>
+                    <p class="text-muted mt-2 mb-0">满分 {{ result.total_score }} 分</p>
+                </div>
+
+                <hr>
+
+                <p class="text-muted mb-2">
+                    <i class="fas fa-clock mr-1"></i>提交时间：{{ result.submitted_at.strftime('%Y-%m-%d %H:%M') }}
+                </p>
+
+                <!-- 考试已结束：显示解析按钮 -->
+                {% if exam_ended %}
+                    <a href="{{ url_for('result.view_analysis', exam_id=result.exam_id, student_id=current_user.id) }}"
+                       class="btn btn-info btn-lg mt-3">
+                        <i class="fas fa-clipboard-list mr-1"></i>查看答案解析
+                    </a>
+                {% else %}
+                    <div class="alert alert-light border mt-3 mb-0" role="alert">
+                        <i class="fas fa-lock mr-1 text-muted"></i>
+                        <span class="text-muted">考试尚未结束，解析将在考试结束后开放查看</span>
+                        {% if result.exam.end_time %}
+                        <br>
+                        <small class="text-muted">
+                            截止时间：{{ result.exam.end_time.strftime('%Y-%m-%d %H:%M') }}
+                        </small>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+            <div class="card-footer text-center">
+                <a href="{{ url_for('execution.student_dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left mr-1"></i>返回我的考试
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

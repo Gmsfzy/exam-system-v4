@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线考试系统</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .navbar { box-shadow: 0 2px 10px rgba(0,0,0,0.15); padding: 0.6rem 1rem; }
+        .navbar-brand { font-weight: 700; font-size: 1.15rem; letter-spacing: 0.5px; }
+        .navbar .nav-link {
+            padding: 0.5rem 0.85rem !important; border-radius: 6px; margin: 0 2px;
+            font-size: 0.9rem; transition: all 0.2s ease; color: rgba(255,255,255,0.75) !important;
+        }
+        .navbar .nav-link:hover { background: rgba(255,255,255,0.1); color: #fff !important; }
+        .navbar .nav-link.active {
+            background: rgba(255,255,255,0.18) !important; color: #fff !important; font-weight: 600;
+        }
+        .navbar .user-badge {
+            color: rgba(255,255,255,0.9); font-size: 0.85rem;
+            background: rgba(255,255,255,0.1); border-radius: 20px;
+            padding: 0.25rem 0.8rem; margin-right: 0.5rem;
+        }
+        .navbar .nav-link.logout-link { color: rgba(255,255,255,0.6) !important; }
+        .navbar .nav-link.logout-link:hover { color: #fc8181 !important; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-graduation-cap mr-2"></i>在线考试系统
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#mainNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav mr-auto">
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.is_teacher() %}
+                            <li class="nav-item">
+                                <a class="nav-link" data-path="/dashboard" href="{{ url_for('exam.dashboard') }}">
+                                    <i class="fas fa-chalkboard-teacher mr-1"></i>考试管理
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-path="/questions" href="{{ url_for('question_bank.list_questions') }}">
+                                    <i class="fas fa-database mr-1"></i>题库管理
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-path="/majors" href="{{ url_for('question_bank.manage_majors') }}">
+                                    <i class="fas fa-book-open mr-1"></i>专业管理
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-path="/ai/generate" href="{{ url_for('ai.generate_questions') }}">
+                                    <i class="fas fa-robot mr-1"></i>AI出题
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="nav-item">
+                                <a class="nav-link" data-path="/student/dashboard" href="{{ url_for('execution.student_dashboard') }}">
+                                    <i class="fas fa-file-alt mr-1"></i>我的考试
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-path="/results/me" href="{{ url_for('result.my_results') }}">
+                                    <i class="fas fa-chart-bar mr-1"></i>我的成绩
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav align-items-center">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <span class="user-badge">
+                                <i class="fas fa-user-circle mr-1"></i>{{ current_user.username }}
+                            </span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link logout-link" href="{{ url_for('auth.logout') }}">
+                                <i class="fas fa-sign-out-alt mr-1"></i>退出
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.login') }}">
+                                <i class="fas fa-sign-in-alt mr-1"></i>登录
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.register') }}">
+                                <i class="fas fa-user-plus mr-1"></i>注册
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 导航栏高亮脚本 -->
+    <script>
+        (function() {
+            var path = window.location.pathname;
+            document.querySelectorAll('.nav-link[data-path]').forEach(function(link) {
+                var linkPath = link.getAttribute('data-path');
+                if (path === linkPath || path.startsWith(linkPath + '/') || path.startsWith(linkPath + '?')) {
+                    link.classList.add('active');
+                }
+            });
+        })();
+    </script>

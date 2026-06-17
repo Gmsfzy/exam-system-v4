@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑题目</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    {% include 'layout/header.html' %}
+    <div class="container mt-4">
+        <h2>编辑题目</h2>
+        <form method="POST">
+            <div class="form-group">
+                <label>题目内容</label>
+                <textarea class="form-control" name="content" required>{{ question.content }}</textarea>
+            </div>
+            <div class="form-group">
+                <label>选项（JSON格式）</label>
+                <textarea class="form-control" name="options">{{ question.options }}</textarea>
+            </div>
+            <div class="form-group">
+                <label>正确答案</label>
+                <input type="text" class="form-control" name="answer" value="{{ question.answer }}" required>
+            </div>
+            <div class="form-group">
+                <label>答案解析</label>
+                <textarea class="form-control" name="analysis">{{ question.analysis }}</textarea>
+            </div>
+            <div class="form-group">
+                <label>专业</label>
+                <select class="form-control" name="major_id" required>
+                    {% for major in majors %}
+                        <option value="{{ major.id }}" {% if question.major_id == major.id %}selected{% endif %}>
+                            {{ major.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>题型</label>
+                <select class="form-control" name="type" required>
+                    <option value="single_choice" {% if question.type == 'single_choice' %}selected{% endif %}>单选题</option>
+                    <option value="multiple_choice" {% if question.type == 'multiple_choice' %}selected{% endif %}>多选题</option>
+                    <option value="fill_blank" {% if question.type == 'fill_blank' %}selected{% endif %}>填空题</option>
+                    <option value="true_false" {% if question.type == 'true_false' %}selected{% endif %}>判断题</option>
+                    <option value="short_answer" {% if question.type == 'short_answer' %}selected{% endif %}>问答题</option>
+                    <option value="programming" {% if question.type == 'programming' %}selected{% endif %}>编程题</option>
+                    <option value="application" {% if question.type == 'application' %}selected{% endif %}>应用题</option>
+                    <option value="calculation" {% if question.type == 'calculation' %}selected{% endif %}>计算题</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>难度</label>
+                <select class="form-control" name="difficulty" required>
+                    <option value="easy" {% if question.difficulty == 'easy' %}selected{% endif %}>简单</option>
+                    <option value="medium" {% if question.difficulty == 'medium' %}selected{% endif %}>中等</option>
+                    <option value="hard" {% if question.difficulty == 'hard' %}selected{% endif %}>困难</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">保存</button>
+            <a href="{{ url_for('question_bank.list_questions') }}" class="btn btn-secondary">取消</a>
+        </form>
+    </div>
+</body>
+</html>

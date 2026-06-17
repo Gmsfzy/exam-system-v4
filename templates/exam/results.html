@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考试成绩 - {{ exam.title }}</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background-color: #f5f7fa; }
+        .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem; }
+        .page-header h2 { margin: 0; font-weight: 600; color: #2d3748; }
+        .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 10px; }
+        .table thead th { background-color: #f8f9fc; font-weight: 600; color: #4a5568; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+        .table td { vertical-align: middle; }
+        .flash-container { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 400px; }
+    </style>
+</head>
+<body>
+    {% include 'layout/header.html' %}
+
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="container mt-4">
+        <div class="page-header">
+            <h2><i class="fas fa-chart-bar mr-2 text-success"></i>考试成绩：{{ exam.title }}</h2>
+            <div>
+                <a href="{{ url_for('result.grading_list', exam_id=exam.id) }}" class="btn btn-warning btn-sm mr-1">
+                    <i class="fas fa-pen-fancy mr-1"></i>人工评分
+                </a>
+                <a href="{{ url_for('exam.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left mr-1"></i>返回
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-0">
+                {% if exam.results %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>学生</th>
+                                <th class="text-center">成绩</th>
+                                <th class="text-center">总分</th>
+                                <th class="text-center">正确率</th>
+                                <th>提交时间</th>
+                                <th class="text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in exam.results %}
+                            {% set pct = (result.score / result.total_score * 100) if result.total_score > 0 else 0 %}
+                            <tr>
+                                <td class="font-weight-bold">
+                                    <i class="fas fa-user-graduate text-primary mr-2"></i>
+                                    {{ result.student.username }}
+                                </td>
+                                <td class="text-center font-weight-bold" style="color:{{ '#276749' if pct >= 70 else ('#9c4221' if pct >= 40 else '#c53030') }}">
+                                    {{ result.score }}
+                                </td>
+                                <td class="text-center text-muted">{{ result.total_score }}</td>
+                                <td class="text-center">
+                                    <span class="badge {{ 'badge-success' if pct >= 70 else ('badge-warning' if pct >= 40 else 'badge-danger') }} px-2 py-1">
+                                        {{ pct|round(1) }}%
+                                    </span>
+                                </td>
+                                <td class="text-muted small">{{ result.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="text-center">
+                                    {% if exam.status == 'ended' %}
+                                        <a href="{{ url_for('result.view_analysis', exam_id=exam.id, student_id=result.student_id) }}"
+                                           class="btn btn-sm btn-outline-info mr-1" title="查看解析">
+                                            <i class="fas fa-search mr-1"></i>解析
+                                        </a>
+                                    {% endif %}
+                                    <a href="{{ url_for('result.grading_detail', exam_id=exam.id, student_id=result.student_id) }}"
+                                       class="btn btn-sm btn-outline-warning" title="人工评分">
+                                        <i class="fas fa-pen mr-1"></i>评分
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-inbox" style="font-size:2.5rem"></i>
+                    <p class="mt-2">暂无成绩记录</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>setTimeout(function(){$('.flash-container .alert').fadeOut(500)},4000)</script>
+</body>
+</html>

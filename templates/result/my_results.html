@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的成绩</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    {% include 'layout/header.html' %}
+    <div class="container mt-4">
+        <h2><i class="fas fa-chart-line mr-2"></i>我的考试成绩</h2>
+
+        {% if results %}
+        <table class="table table-striped mt-3">
+            <thead class="thead-light">
+                <tr>
+                    <th>考试名称</th>
+                    <th>成绩</th>
+                    <th>总分</th>
+                    <th>提交时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                    {% set exam_ended = (result.exam.status == ExamStatusEnum.ENDED) or (result.exam.end_time and now > result.exam.end_time) %}
+                <tr>
+                    <td><strong>{{ result.exam.title }}</strong></td>
+                    <td>
+                        {% set pct = (result.score / result.total_score * 100) if result.total_score > 0 else 0 %}
+                        <span class="{% if pct >= 80 %}text-success{% elif pct >= 60 %}text-warning{% else %}text-danger{% endif %} font-weight-bold">
+                            {{ result.score }}
+                        </span>
+                    </td>
+                    <td>{{ result.total_score }}</td>
+                    <td>{{ result.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        {% if exam_ended %}
+                            <a href="{{ url_for('result.view_analysis', exam_id=result.exam_id, student_id=current_user.id) }}"
+                               class="btn btn-sm btn-info">
+                                <i class="fas fa-clipboard-list mr-1"></i>查看解析
+                            </a>
+                        {% else %}
+                            <span class="text-muted small"><i class="fas fa-lock mr-1"></i>考试结束后开放</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="alert alert-info mt-4">
+                <i class="fas fa-inbox mr-1"></i>暂无考试成绩
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题库管理 - 在线考试系统</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background-color: #f5f7fa; }
+        .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
+        .page-header h2 { margin: 0; font-weight: 600; color: #2d3748; }
+        .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 10px; }
+        .table thead th { background-color: #f8f9fc; font-weight: 600; color: #4a5568; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+        .table td { vertical-align: middle; }
+        .difficulty-easy   { background: #c6f6d5; color: #276749; }
+        .difficulty-medium { background: #feebc8; color: #9c4221; }
+        .difficulty-hard   { background: #fed7d7; color: #c53030; }
+        .type-badge { background: #e9d8fd; color: #553c9a; }
+        .btn-icon { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+        .filter-card { border-radius: 10px; }
+        .empty-state { padding: 3rem; text-align: center; color: #a0aec0; }
+        .empty-state i { font-size: 3rem; margin-bottom: 1rem; }
+        .flash-container { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 400px; }
+        .import-hint { background: #f0f4ff; border-left: 3px solid #4a6cf7; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.85rem; color: #374151; }
+        .import-hint code { background: #e2e8f0; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    {% include 'layout/header.html' %}
+
+    <!-- Flash 消息 -->
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {% if category == 'success' %}<i class="fas fa-check-circle mr-1"></i>
+                        {% elif category == 'danger' %}<i class="fas fa-exclamation-circle mr-1"></i>
+                        {% elif category == 'warning' %}<i class="fas fa-exclamation-triangle mr-1"></i>
+                        {% else %}<i class="fas fa-info-circle mr-1"></i>{% endif %}
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="container mt-4">
+        <!-- 页头 -->
+        <div class="page-header">
+            <h2><i class="fas fa-database mr-2 text-primary"></i>题库管理</h2>
+            <div class="d-flex gap-2" style="gap:0.5rem; flex-wrap: wrap;">
+                <a href="{{ url_for('question_bank.add_question') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus mr-1"></i>添加题目
+                </a>
+                <button class="btn btn-outline-success btn-sm" data-toggle="modal" data-target="#importModal">
+                    <i class="fas fa-file-upload mr-1"></i>批量导入
+                </button>
+                <!-- 导出下拉 -->
+                <div class="btn-group">
+                    <a href="{{ url_for('question_bank.export_questions', major_id=selected_major or '', type=selected_type or '', format='csv') }}"
+                       class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-file-csv mr-1"></i>导出CSV
+                    </a>
+                    <a href="{{ url_for('question_bank.export_questions', major_id=selected_major or '', type=selected_type or '', format='excel') }}"
+                       class="btn btn-outline-info btn-sm" title="导出 Excel">
+                        <i class="fas fa-file-excel mr-1"></i>Excel
+                    </a>
+                </div>
+                <!-- 模板下载下拉 -->
+                <div class="btn-group">
+                    <a href="{{ url_for('question_bank.download_template', format='csv') }}" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-file-csv mr-1"></i>CSV模板
+                    </a>
+                    <a href="{{ url_for('question_bank.download_template', format='excel') }}" class="btn btn-outline-warning btn-sm" title="下载 Excel 模板">
+                        <i class="fas fa-file-excel mr-1"></i>Excel模板
+                    </a>
+                </div>
+                <a href="{{ url_for('question_bank.manage_majors') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-book-open mr-1"></i>管理专业
+                </a>
+                <a href="{{ url_for('ai.generate_questions') }}" class="btn btn-outline-info btn-sm">
+                    <i class="fas fa-robot mr-1"></i>AI出题
+                </a>
+            </div>
+        </div>
+
+        <!-- 筛选栏 -->
+        <div class="card filter-card mb-4">
+            <div class="card-body py-3">
+                <form method="GET" class="form-inline d-flex align-items-end flex-wrap" style="gap:0.75rem">
+                    <div class="form-group mb-0">
+                        <label class="small font-weight-bold text-secondary d-block mb-1">专业</label>
+                        <select name="major_id" class="form-control form-control-sm" style="min-width:140px">
+                            <option value="">全部专业</option>
+                            {% for major in majors %}
+                                <option value="{{ major.id }}"
+                                    {% if selected_major and selected_major|string == major.id|string %}selected{% endif %}>
+                                    {{ major.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="small font-weight-bold text-secondary d-block mb-1">题型</label>
+                        <select name="type" class="form-control form-control-sm" style="min-width:120px">
+                            <option value="">全部题型</option>
+                            <option value="single_choice"   {% if selected_type == 'single_choice' %}selected{% endif %}>单选题</option>
+                            <option value="multiple_choice" {% if selected_type == 'multiple_choice' %}selected{% endif %}>多选题</option>
+                            <option value="fill_blank"      {% if selected_type == 'fill_blank' %}selected{% endif %}>填空题</option>
+                            <option value="true_false"      {% if selected_type == 'true_false' %}selected{% endif %}>判断题</option>
+                            <option value="short_answer"    {% if selected_type == 'short_answer' %}selected{% endif %}>问答题</option>
+                            <option value="programming"     {% if selected_type == 'programming' %}selected{% endif %}>编程题</option>
+                            <option value="application"     {% if selected_type == 'application' %}selected{% endif %}>应用题</option>
+                            <option value="calculation"     {% if selected_type == 'calculation' %}selected{% endif %}>计算题</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-filter mr-1"></i>筛选
+                    </button>
+                    {% if selected_major or selected_type %}
+                    <a href="{{ url_for('question_bank.list_questions') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-times mr-1"></i>清除
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- 题目列表 -->
+        <div class="card">
+            <div class="card-body p-0">
+                {% if questions %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width:40%">题目内容</th>
+                                <th>专业</th>
+                                <th>题型</th>
+                                <th>难度</th>
+                                <th class="text-center" style="width:100px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for question in questions %}
+                            <tr>
+                                <td>
+                                    <span class="text-dark">{{ question.content[:60] }}</span>
+                                    {% if question.content|length > 60 %}<span class="text-muted">...</span>{% endif %}
+                                </td>
+                                <td><small class="text-muted"><i class="fas fa-bookmark mr-1"></i>{{ question.major.name }}</small></td>
+                                <td>
+                                    {% set type_labels = {'single_choice':'单选题','multiple_choice':'多选题','fill_blank':'填空题','true_false':'判断题','short_answer':'问答题','programming':'编程题','application':'应用题','calculation':'计算题'} %}
+                                    <span class="badge type-badge">{{ type_labels.get(question.type, question.type) }}</span>
+                                </td>
+                                <td>
+                                    {% set diff_labels = {'easy':'简单','medium':'中等','hard':'困难'} %}
+                                    {% set diff_class = {'easy':'difficulty-easy','medium':'difficulty-medium','hard':'difficulty-hard'} %}
+                                    <span class="badge {{ diff_class.get(question.difficulty, '') }}">{{ diff_labels.get(question.difficulty, question.difficulty) }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('question_bank.edit_question', id=question.id) }}"
+                                       class="btn btn-outline-info btn-icon mr-1" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <!-- 删除按钮触发确认弹框 -->
+                                    <button class="btn btn-outline-danger btn-icon"
+                                            onclick="confirmDelete({{ question.id }}, '{{ question.content[:30]|e }}')"
+                                            title="删除">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-3 py-2 bg-light small text-muted" style="border-radius:0 0 10px 10px">
+                    共 {{ questions|length }} 道题目
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox d-block"></i>
+                    <p class="mb-2">暂无题目</p>
+                    <a href="{{ url_for('question_bank.add_question') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus mr-1"></i>添加第一道题目
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认弹框 -->
+    <div class="modal fade" id="deleteQuestionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="border-radius:12px;overflow:hidden">
+                <div class="modal-header bg-danger text-white py-2">
+                    <h6 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>确认删除题目</h6>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary mb-2">删除后无法恢复，确定要删除以下题目吗？</p>
+                    <div class="alert alert-light border small" id="deleteQuestionPreview" style="border-radius:8px"></div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">取消</button>
+                    <form id="deleteQuestionForm" method="POST" style="display:inline">
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="fas fa-trash-alt mr-1"></i>确认删除
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量导入弹框 -->
+    <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:12px;overflow:hidden">
+                <div class="modal-header bg-success text-white py-2">
+                    <h6 class="modal-title"><i class="fas fa-file-upload mr-2"></i>批量导入题目</h6>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <form action="{{ url_for('question_bank.import_questions') }}" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body p-4">
+                        <div class="import-hint mb-3">
+                            <strong><i class="fas fa-lightbulb text-warning mr-1"></i>使用说明：</strong>
+                            <ul class="mb-0 mt-2 pl-3">
+                                <li>支持 <code>.csv</code> 和 <code>.xlsx</code>（Excel）两种格式</li>
+                                <li>表头必须与模板一致，下载模板后填写即可</li>
+                                <li>专业名不存在时会自动创建</li>
+                                <li>题型可选：<code>单选题 / 多选题 / 填空题 / 判断题 / 问答题 / 编程题 / 应用题 / 计算题</code></li>
+                                <li>难度可选：<code>简单 / 中等 / 困难</code></li>
+                                <li>选项列使用 JSON 格式，如 <code>["A.选项一","B.选项二"]</code></li>
+                            </ul>
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold small">选择文件</label>
+                            <div class="custom-file">
+                                <input type="file" name="file" class="custom-file-input" id="fileInput" accept=".csv,.xlsx,.xls" required>
+                                <label class="custom-file-label" for="fileInput" id="fileLabel">请选择 CSV 或 Excel 文件...</label>
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <a href="{{ url_for('question_bank.download_template', format='csv') }}" class="btn btn-link btn-sm mr-2">
+                                <i class="fas fa-file-csv mr-1"></i>下载 CSV 模板
+                            </a>
+                            <a href="{{ url_for('question_bank.download_template', format='excel') }}" class="btn btn-link btn-sm">
+                                <i class="fas fa-file-excel mr-1"></i>下载 Excel 模板
+                            </a>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light py-2">
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-upload mr-1"></i>开始导入
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        // Flash 消息自动消失
+        setTimeout(function() { $('.flash-container .alert').fadeOut(500); }, 4000);
+
+        function confirmDelete(qId, preview) {
+            $('#deleteQuestionForm').attr('action', '/questions/delete/' + qId);
+            $('#deleteQuestionPreview').html('<i class="fas fa-question-circle text-danger mr-2"></i>' + preview + '...');
+            $('#deleteQuestionModal').modal('show');
+        }
+
+        // 文件选择后显示文件名
+        document.getElementById('fileInput').addEventListener('change', function() {
+            var fileName = this.files[0] ? this.files[0].name : '请选择 CSV 或 Excel 文件...';
+            document.getElementById('fileLabel').textContent = fileName;
+        });
+    </script>
+</body>
+</html>

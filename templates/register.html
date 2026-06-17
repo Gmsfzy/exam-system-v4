@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 在线考试系统</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem 0; }
+        .register-card {
+            background: white; border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            overflow: hidden; width: 100%; max-width: 440px;
+        }
+        .register-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 1.8rem; text-align: center; color: white;
+        }
+        .register-header h2 { font-weight: 700; margin: 0.5rem 0 0; font-size: 1.5rem; }
+        .register-header .icon-circle {
+            width: 56px; height: 56px; border-radius: 50%;
+            background: rgba(255,255,255,0.2); display: flex;
+            align-items: center; justify-content: center;
+            margin: 0 auto; font-size: 1.5rem;
+        }
+        .register-body { padding: 2rem; }
+        .form-control:focus { border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.25); }
+        .btn-register {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none; border-radius: 50px; font-weight: 600;
+            padding: 0.7rem; font-size: 1rem; transition: all 0.3s;
+        }
+        .btn-register:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102,126,234,0.4); }
+        .register-footer { background: #f8f9fa; padding: 1.2rem; text-align: center; border-radius: 0 0 16px 16px; }
+        .register-footer a { color: #667eea; font-weight: 600; }
+        .flash-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 350px; }
+        .role-card {
+            border: 2px solid #e2e8f0; border-radius: 10px; padding: 1rem; cursor: pointer;
+            text-align: center; transition: all 0.2s; flex: 1;
+        }
+        .role-card:hover { border-color: #667eea; background: #f8f9ff; }
+        .role-card.selected { border-color: #667eea; background: #ebf4ff; }
+        .role-card i { font-size: 1.5rem; color: #667eea; }
+        .role-card .role-label { font-weight: 600; margin-top: 0.4rem; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <!-- Flash 消息 -->
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="register-card">
+        <div class="register-header">
+            <div class="icon-circle"><i class="fas fa-user-plus"></i></div>
+            <h2>注册账户</h2>
+        </div>
+        <div class="register-body">
+            <form method="POST">
+                <div class="form-group">
+                    <label class="font-weight-bold text-secondary">
+                        <i class="fas fa-user mr-1"></i>用户名 <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="username" name="username"
+                           placeholder="请输入用户名" required style="border-radius:8px">
+                </div>
+                <div class="form-group">
+                    <label class="font-weight-bold text-secondary">
+                        <i class="fas fa-envelope mr-1"></i>邮箱 <small class="text-muted">（选填）</small>
+                    </label>
+                    <input type="email" class="form-control" id="email" name="email"
+                           placeholder="请输入邮箱地址" style="border-radius:8px">
+                </div>
+                <div class="form-group">
+                    <label class="font-weight-bold text-secondary">
+                        <i class="fas fa-lock mr-1"></i>密码 <span class="text-danger">*</span>
+                    </label>
+                    <input type="password" class="form-control" id="password" name="password"
+                           placeholder="请输入密码（至少6位）" required minlength="6" style="border-radius:8px">
+                </div>
+                <div class="form-group">
+                    <label class="font-weight-bold text-secondary d-block">
+                        <i class="fas fa-user-tag mr-1"></i>选择角色 <span class="text-danger">*</span>
+                    </label>
+                    <div class="d-flex" style="gap:0.75rem">
+                        <div class="role-card selected" onclick="selectRole('teacher', this)">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                            <div class="role-label">教师</div>
+                            <small class="text-muted">出题、管理考试</small>
+                        </div>
+                        <div class="role-card" onclick="selectRole('student', this)">
+                            <i class="fas fa-user-graduate"></i>
+                            <div class="role-label">学生</div>
+                            <small class="text-muted">参加考试、查看成绩</small>
+                        </div>
+                    </div>
+                    <input type="hidden" id="role" name="role" value="teacher">
+                </div>
+                <button type="submit" class="btn btn-primary btn-register btn-block mt-4">
+                    <i class="fas fa-user-plus mr-2"></i>立即注册
+                </button>
+            </form>
+        </div>
+        <div class="register-footer">
+            <p class="mb-0 text-muted">已有账户？<a href="{{ url_for('auth.login') }}">立即登录</a></p>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        setTimeout(function() { $('.flash-container .alert').fadeOut(500); }, 4000);
+
+        function selectRole(role, el) {
+            document.getElementById('role').value = role;
+            document.querySelectorAll('.role-card').forEach(function(card) {
+                card.classList.remove('selected');
+            });
+            el.classList.add('selected');
+        }
+    </script>
+</body>
+</html>
