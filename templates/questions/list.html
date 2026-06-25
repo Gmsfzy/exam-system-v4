@@ -162,16 +162,18 @@
                                     <span class="badge {{ diff_class.get(question.difficulty, '') }}">{{ diff_labels.get(question.difficulty, question.difficulty) }}</span>
                                 </td>
                                 <td class="text-center">
-                                    <a href="{{ url_for('question_bank.edit_question', id=question.id) }}"
-                                       class="btn btn-outline-info btn-icon mr-1" title="编辑">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <!-- 删除按钮触发确认弹框 -->
-                                    <button class="btn btn-outline-danger btn-icon"
-                                            onclick="confirmDelete({{ question.id }}, '{{ question.content[:30]|e }}')"
-                                            title="删除">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
+                                    <div class="d-flex justify-content-center">
+                                        <a href="{{ url_for('question_bank.edit_question', id=question.id) }}"
+                                           class="btn btn-outline-info btn-icon mr-2" title="编辑">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <!-- 删除按钮触发确认弹框 -->
+                                        <button class="btn btn-outline-danger btn-icon"
+                                                onclick="confirmDelete({{ question.id }}, '{{ question.content[:30]|e }}')"
+                                                title="删除">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
